@@ -5,6 +5,7 @@ import pickle
 import re
 import string
 import sys
+from typing import Counter
 
 from nltk.stem import PorterStemmer
 
@@ -13,6 +14,7 @@ class InvertedIndex:
     def __init__(self):
         self.index = {}
         self.docmap = {}
+        self.term_frequencies: dict[int, Counter] = {} 
         self.stemer = PorterStemmer()
 
     def __add_document(self, doc_id, text):
@@ -20,10 +22,22 @@ class InvertedIndex:
         for token in tokens:
             stemmed_token = self.stemer.stem(token)
             self.index.setdefault(stemmed_token, set()).add(doc_id)
+            self.term_frequencies[doc_id] += 1
 
     def get_documents(self, term):
         return sorted(self.index.get(self.stemer.stem(term), set()))
 
+    def get_tf(self, doc_id, term):
+        try:
+            return self.term_frequencies[doc_id][term]
+        except BaseException:
+            return 0
+    
+    def tokenizer(self, term):
+        tokenized_term = tokenize_text(term)
+        
+    
+    
     def build(self, path):
         movies = extract_data(path)
         for movie in movies["movies"]:
@@ -38,12 +52,16 @@ class InvertedIndex:
             pickle.dump(self.index, f)
         with open("cache/docmap.pkl", "wb") as f:
             pickle.dump(self.docmap, f)
+        with open("cache/term_frequencies.pkl", "wb") as f:
+            pickle.dump(self.term_frequencies, f)
 
     def load(self):
         with open("cache/index.pkl", "rb") as f:
             self.index = pickle.load(f)
         with open("cache/docmap.pkl", "rb") as f:
             self.docmap = pickle.load(f)
+        with open("cache/term_frequencies.pkl", "rb") as f:
+                self.term_frequencies = pickle.load(f)
 
 def extract_data(path: str):
     with open(path, "r") as f:
