@@ -10,6 +10,7 @@ from typing import Counter
 
 from nltk.stem import PorterStemmer
 
+BM25_K1 = 1.5
 
 class InvertedIndex:
     def __init__(self):
@@ -49,6 +50,16 @@ class InvertedIndex:
             raise Exception("Detected more than 1 term")
         return tokenized_term[0]
     
+    def get_bm25_idf(self, term: str) -> float:
+        N = len(self.docmap)
+        df = len(self.index.get(term, set()))
+        bm25_score = math.log((N - df + .5) / (df + .5) + 1)
+        return bm25_score
+    
+    def get_bm25_tf(self, doc_id, term, k1=BM25_K1):
+        tf = self.get_tf(doc_id, term)
+        tf_saturation = (tf * (k1 + 1)) / (tf + k1)
+        return tf_saturation
     
     def build(self, path):
         movies = extract_data(path)
@@ -112,6 +123,12 @@ def get_clean_tokens(token, stop_words, stemer):
     clean_token = remove_stop_words(clean_token, stop_words)
     return clean_token
 
+def bm25_idf_command(term: str) -> float:
+    inverted_index = InvertedIndex()
+    inverted_index.load()
+    token = inverted_index.tokenize_single_term(term)
+    score: float = inverted_index.get_bm25_idf(token)
+    return score
     
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
@@ -133,6 +150,28 @@ def main() -> None:
     tf_idf_parser.add_argument("doc_id", type=int, help="Document ID")
     tf_idf_parser.add_argument("term", type=str, help="The term to calculate")
     
+    bm25_idf_parser = subparsers.add_parser("bm25idf",
+                                            help="Get BM25 IDF score for a given term"
+                                            )
+    bm25_idf_parser.add_argument("term",
+                                 type=str,
+                                 help="Term to get BM25 IDF score for"
+                                 )
+
+    bm25_tf_parser = subparsers.add_parser("bm25tf",
+                                           help="Get BM25 TF score for a given document ID and term")
+    bm25_tf_parser.add_argument("doc_id",
+                                type=int,
+                                help="Document ID")
+    bm25_tf_parser.add_argument("term",
+                                type=str,
+                                help="Term to get BM25 TF score for")
+    bm25_tf_parser.add_argument("k1",
+                                type=float,
+                                nargs="?",
+                                default=BM25_K1,
+                                help="Tunable BM25 K1 parameter")
+
     args = parser.parse_args()
     # data = extract_data("data/movies.json")
     # res = []
@@ -180,6 +219,15 @@ def main() -> None:
             idf = inverted_indexer.get_idf(args.term)
             tf_idf = tf * idf
             print(f"TF-IDF score of '{args.term}' in document '{args.doc_id}': {tf_idf:.2f}")
+        case "bm25idf":
+            bm25idf = bm25_idf_command(args.term)
+            print(f"BM25 IDF score of '{args.term}': {bm25idf:.2f}")
+        case "bm25tf":
+            inverted_indexer = InvertedIndex()
+            inverted_indexer.load()
+            token = inverted_indexer.tokenize_single_term(args.term)
+            bm25tf = inverted_indexer.get_bm25_tf(args.doc_id, token)
+            print(f"BM25 TF score of '{args.term}' in document '{args.doc_id}': {bm25tf:.2f}")
         case _:
             parser.print_help()
 
