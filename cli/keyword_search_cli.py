@@ -18,24 +18,28 @@ class InvertedIndex:
         self.stemer = PorterStemmer()
 
     def __add_document(self, doc_id, text):
-        tokens = tokenize_text(text)
+        tokens = tokenize_text(text, self.stemer)
+        self.term_frequencies.setdefault(doc_id, Counter())
         for token in tokens:
             stemmed_token = self.stemer.stem(token)
             self.index.setdefault(stemmed_token, set()).add(doc_id)
-            self.term_frequencies[doc_id] += 1
+            self.term_frequencies[doc_id][token] += 1
 
     def get_documents(self, term):
         return sorted(self.index.get(self.stemer.stem(term), set()))
 
     def get_tf(self, doc_id, term):
         try:
-            return self.term_frequencies[doc_id][term]
+            tf = int(self.term_frequencies[int(doc_id)][term])
+            return tf
         except BaseException:
             return 0
     
-    def tokenizer(self, term):
-        tokenized_term = tokenize_text(term)
-        
+    def tokenize_single_term(self, term):
+        tokenized_term = tokenize_text(term, self.stemer)
+        if len(tokenized_term) > 1:
+            raise Exception("Detected more than 1 term")
+        return tokenized_term
     
     
     def build(self, path):
@@ -76,25 +80,26 @@ def get_stop_words(path):
             stop_words.append(line.strip("\n"))
     return stop_words
             
-def remove_stop_words(tokens, stop_words, stemer):
+def remove_stop_words(tokens, stop_words):
     res = []
     for token in tokens:
-        token = stemer.stem(token)
         if token not in stop_words:
             res.append(token)
     return res
 
-def tokenize_text(token):
+def tokenize_text(token, stemer):
     clean_token = ''.join(ch for ch in token.lower() if ch not in string.punctuation)
     clean_token = re.split(" |\t|\r|\r|\f", clean_token)
+    for i in range(len(clean_token)):
+        clean_token[i] = stemer.stem(clean_token[i])
     return clean_token
 
 def get_clean_tokens(token, stop_words, stemer):
     """returns a list of strings of a clean stemed string
         removing all the punctuations and spaces
     """
-    clean_token = tokenize_text(token)
-    clean_token = remove_stop_words(clean_token, stop_words, stemer)
+    clean_token = tokenize_text(token, stemer)
+    clean_token = remove_stop_words(clean_token, stop_words)
     return clean_token
 
     
@@ -105,6 +110,9 @@ def main() -> None:
     search_parser = subparsers.add_parser("search", help="Search movies using keywords")
     search_parser.add_argument("query", type=str, help="Search query")
     subparsers.add_parser("build", help="Build dataset")
+    tf_parser = subparsers.add_parser("tf", help="print's the term frequency for a term in a given document ID")
+    tf_parser.add_argument("Document_ID", type=str, help="Document ID")
+    tf_parser.add_argument("term", type=str, help="the term to search for (must be a SINGLE token!)")
 
     args = parser.parse_args()
     # data = extract_data("data/movies.json")
@@ -128,6 +136,15 @@ def main() -> None:
             indexer = InvertedIndex()
             indexer.build("data/movies.json")
             indexer.save()
+        case "tf":
+            try:
+                inverted_indexer = InvertedIndex()
+                inverted_indexer.load()
+                token = inverted_indexer.tokenize_single_term(args.term)[0]
+                print(inverted_indexer.get_tf(args.Document_ID, token))
+            except Exception as e:
+                print(e)
+                sys.exit()
         case _:
             parser.print_help()
 
