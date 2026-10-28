@@ -5,6 +5,7 @@ import pickle
 import re
 import string
 import sys
+import math
 from typing import Counter
 
 from nltk.stem import PorterStemmer
@@ -37,9 +38,11 @@ class InvertedIndex:
     
     def tokenize_single_term(self, term):
         tokenized_term = tokenize_text(term, self.stemer)
+        if not tokenized_term or not tokenized_term[0]:
+            raise ValueError("No searchable term found")
         if len(tokenized_term) > 1:
             raise Exception("Detected more than 1 term")
-        return tokenized_term
+        return tokenized_term[0]
     
     
     def build(self, path):
@@ -87,7 +90,9 @@ def remove_stop_words(tokens, stop_words):
             res.append(token)
     return res
 
-def tokenize_text(token, stemer):
+def tokenize_text(token, stemer=None):
+    if stemer is None:
+        stemer = PorterStemmer()
     clean_token = ''.join(ch for ch in token.lower() if ch not in string.punctuation)
     clean_token = re.split(" |\t|\r|\r|\f", clean_token)
     for i in range(len(clean_token)):
@@ -113,7 +118,8 @@ def main() -> None:
     tf_parser = subparsers.add_parser("tf", help="print's the term frequency for a term in a given document ID")
     tf_parser.add_argument("Document_ID", type=str, help="Document ID")
     tf_parser.add_argument("term", type=str, help="the term to search for (must be a SINGLE token!)")
-
+    idf_parser = subparsers.add_parser("idf", help="print to stdout the Inversed Term Frequency")
+    idf_parser.add_argument("term", type=str, help="the term to search for (must be a SINGLE token!)")
     args = parser.parse_args()
     # data = extract_data("data/movies.json")
     # res = []
@@ -127,7 +133,7 @@ def main() -> None:
                 sys.exit(1)
 
             matching_documents = set()
-            for token in tokenize_text(args.query):
+            for token in tokenize_text(args.query, indexer.stemer):
                 matching_documents.update(indexer.get_documents(token))
 
             for doc_id in sorted(matching_documents)[:5]:
@@ -140,11 +146,22 @@ def main() -> None:
             try:
                 inverted_indexer = InvertedIndex()
                 inverted_indexer.load()
-                token = inverted_indexer.tokenize_single_term(args.term)[0]
+                token = inverted_indexer.tokenize_single_term(args.term)
                 print(inverted_indexer.get_tf(args.Document_ID, token))
             except Exception as e:
                 print(e)
                 sys.exit()
+        case "idf":
+            try:
+                inverted_indexer = InvertedIndex()
+                inverted_indexer.load()
+                token = inverted_indexer.tokenize_single_term(args.term)
+                print(token)
+                document_frequency = len(inverted_indexer.index.get(token, set()))
+                idf = math.log((len(inverted_indexer.docmap) + 1) / (document_frequency + 1))
+                print(f"Inverse document frequency of '{args.term}': {idf:.2f}")
+            except Exception as e:
+                print(e)
         case _:
             parser.print_help()
 
