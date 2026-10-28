@@ -22,8 +22,7 @@ class InvertedIndex:
         tokens = tokenize_text(text, self.stemer)
         self.term_frequencies.setdefault(doc_id, Counter())
         for token in tokens:
-            stemmed_token = self.stemer.stem(token)
-            self.index.setdefault(stemmed_token, set()).add(doc_id)
+            self.index.setdefault(token, set()).add(doc_id)
             self.term_frequencies[doc_id][token] += 1
 
     def get_documents(self, term):
@@ -49,7 +48,7 @@ class InvertedIndex:
         movies = extract_data(path)
         for movie in movies["movies"]:
             self.docmap[movie["id"]] = movie
-            text = movie["description"] + movie["title"]
+            text = f"{movie['title']} {movie['description']}"
             self.__add_document(movie["id"], text)
 
     def save(self):
@@ -94,7 +93,7 @@ def tokenize_text(token, stemer=None):
     if stemer is None:
         stemer = PorterStemmer()
     clean_token = ''.join(ch for ch in token.lower() if ch not in string.punctuation)
-    clean_token = re.split(" |\t|\r|\r|\f", clean_token)
+    clean_token = re.split(" |\t|\r|\n|\f", clean_token)
     for i in range(len(clean_token)):
         clean_token[i] = stemer.stem(clean_token[i])
     return clean_token
