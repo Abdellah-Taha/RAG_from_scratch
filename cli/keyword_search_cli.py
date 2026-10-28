@@ -30,10 +30,16 @@ class InvertedIndex:
 
     def get_tf(self, doc_id, term):
         try:
-            tf = int(self.term_frequencies[int(doc_id)][term])
+            tf = int(self.term_frequencies[doc_id][term])
             return tf
         except BaseException:
             return 0
+    
+    def get_idf(self, term):
+        token = self.tokenize_single_term(term)
+        document_frequency = len(self.index.get(token, set()))
+        idf = math.log((len(self.docmap) + 1) / (document_frequency + 1))
+        return idf
     
     def tokenize_single_term(self, term):
         tokenized_term = tokenize_text(term, self.stemer)
@@ -113,12 +119,20 @@ def main() -> None:
 
     search_parser = subparsers.add_parser("search", help="Search movies using keywords")
     search_parser.add_argument("query", type=str, help="Search query")
+    
     subparsers.add_parser("build", help="Build dataset")
+    
     tf_parser = subparsers.add_parser("tf", help="print's the term frequency for a term in a given document ID")
-    tf_parser.add_argument("Document_ID", type=str, help="Document ID")
+    tf_parser.add_argument("Document_ID", type=int, help="Document ID")
     tf_parser.add_argument("term", type=str, help="the term to search for (must be a SINGLE token!)")
+    
     idf_parser = subparsers.add_parser("idf", help="print to stdout the Inversed Term Frequency")
     idf_parser.add_argument("term", type=str, help="the term to search for (must be a SINGLE token!)")
+    
+    tf_idf_parser = subparsers.add_parser("tfidf", help="print to stdout the final TF-IDF score of a term")
+    tf_idf_parser.add_argument("doc_id", type=int, help="Document ID")
+    tf_idf_parser.add_argument("term", type=str, help="The term to calculate")
+    
     args = parser.parse_args()
     # data = extract_data("data/movies.json")
     # res = []
@@ -154,13 +168,18 @@ def main() -> None:
             try:
                 inverted_indexer = InvertedIndex()
                 inverted_indexer.load()
-                token = inverted_indexer.tokenize_single_term(args.term)
-                print(token)
-                document_frequency = len(inverted_indexer.index.get(token, set()))
-                idf = math.log((len(inverted_indexer.docmap) + 1) / (document_frequency + 1))
+                idf = inverted_indexer.get_idf(args.term)
                 print(f"Inverse document frequency of '{args.term}': {idf:.2f}")
             except Exception as e:
                 print(e)
+        case "tfidf":
+            inverted_indexer = InvertedIndex()
+            inverted_indexer.load()
+            token = inverted_indexer.tokenize_single_term(args.term)
+            tf = inverted_indexer.get_tf(args.doc_id, token)
+            idf = inverted_indexer.get_idf(args.term)
+            tf_idf = tf * idf
+            print(f"TF-IDF score of '{args.term}' in document '{args.doc_id}': {tf_idf:.2f}")
         case _:
             parser.print_help()
 
