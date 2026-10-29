@@ -89,13 +89,13 @@ class InvertedIndex:
         return bm25_score    
     
     def bm25_search(self, query, limit):
-        tokens = tokenize_text(query, self.stemer)
-        score_map = {}
-        for token in tokens:
-            score = 0
-            for doc_id in self.index[token]:
-                score = self.bm25(doc_id, token)
-            score_map[doc_id] = score
+        # tokens = tokenize_text(query, self.stemer)
+        stop_words = get_stop_words("data/stopwords.txt")
+        tokens = get_clean_tokens(query, stop_words, self.stemer)
+        score_map = {doc_id: 0.0 for doc_id in self.docmap}
+        for doc_id in score_map:
+            for token in tokens:
+                score_map[doc_id] += self.bm25(doc_id, token)
         sorted_scores = sorted(score_map.items(), key=lambda item: item[1], reverse=True)
         return dict(sorted_scores[:limit])
             
@@ -148,6 +148,7 @@ def tokenize_text(token, stemer=None):
     clean_token = re.split(" |\t|\r|\n|\f", clean_token)
     for i in range(len(clean_token)):
         clean_token[i] = stemer.stem(clean_token[i])
+    print(clean_token)
     return clean_token
 
 def get_clean_tokens(token, stop_words, stemer):
