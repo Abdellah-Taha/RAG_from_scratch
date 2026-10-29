@@ -89,14 +89,15 @@ class InvertedIndex:
         return bm25_score    
     
     def bm25_search(self, query, limit):
-        tokens = tokenize_text(query)
+        tokens = tokenize_text(query, self.stemer)
         score_map = {}
         for token in tokens:
+            score = 0
             for doc_id in self.index[token]:
                 score = self.bm25(doc_id, token)
-                score_map[doc_id] = score
-        score_map = dict(sorted(score_map.items(), key=lambda item: item[1], reverse=True))
-        return dict(list(score_map.items())[:limit])
+            score_map[doc_id] = score
+        sorted_scores = sorted(score_map.items(), key=lambda item: item[1], reverse=True)
+        return dict(sorted_scores[:limit])
             
     def save(self):
         path = "cache"
@@ -216,6 +217,10 @@ def main() -> None:
     bm25search_parser.add_argument("query",
                                    type=str,
                                    help="Search query")
+    bm25search_parser.add_argument("--limit",
+                                   default=5,
+                                   type=int,
+                                   help="number of top scores to be returned")
 
     args = parser.parse_args()
     # data = extract_data("data/movies.json")
@@ -276,10 +281,9 @@ def main() -> None:
         case "bm25search":
             inverted_indexer = InvertedIndex()
             inverted_indexer.load()
-            scores = inverted_indexer.bm25_search(args.query, 5)
-            for score in scores.values():
-                print(score)
-                
+            scores = inverted_indexer.bm25_search(args.query, args.limit)
+            for i, (id, score) in enumerate(scores.items(), 1): 
+                print(f"{i}. ({id}) {inverted_indexer.docmap[id]['title']} - Score: {score:.2f}")
         case _:
             parser.print_help()
 
