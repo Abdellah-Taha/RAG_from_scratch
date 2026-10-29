@@ -92,12 +92,10 @@ class InvertedIndex:
         tokens = tokenize_text(query)
         score_map = {}
         for token in tokens:
-            score = 0
             for doc_id in self.index[token]:
-                score += self.bm25(doc_id, token)
-            score_map[token] = score
+                score = self.bm25(doc_id, token)
+                score_map[doc_id] = score
         score_map = dict(sorted(score_map.items(), key=lambda item: item[1], reverse=True))
-        print(score_map)
         return dict(list(score_map.items())[:limit])
             
     def save(self):
@@ -279,8 +277,8 @@ def main() -> None:
             inverted_indexer = InvertedIndex()
             inverted_indexer.load()
             scores = inverted_indexer.bm25_search(args.query, 5)
-            # for score in scores:
-                # print(score)
+            for score in scores.values():
+                print(score)
                 
         case _:
             parser.print_help()
