@@ -27,10 +27,10 @@ class InvertedIndex:
     def __add_document(self, doc_id, text):
         tokens = tokenize_text(text, self.stemer)
         self.term_frequencies.setdefault(doc_id, Counter())
-        for i, token in enumerate(tokens):
+        for token in tokens:
             self.index.setdefault(token, set()).add(doc_id)
             self.term_frequencies[doc_id][token] += 1
-        self.doc_lengths[doc_id] = i
+        self.doc_lengths[doc_id] = len(tokens)
         
     def get_documents(self, term):
         return sorted(self.index.get(self.stemer.stem(term), set()))
@@ -148,7 +148,6 @@ def tokenize_text(token, stemer=None):
     clean_token = re.split(" |\t|\r|\n|\f", clean_token)
     for i in range(len(clean_token)):
         clean_token[i] = stemer.stem(clean_token[i])
-    print(clean_token)
     return clean_token
 
 def get_clean_tokens(token, stop_words, stemer):
