@@ -1,17 +1,19 @@
 import argparse
-from sentence_transformers import SentenceTransformer
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
-print(f"Model loaded: {model}")
-print(f"Max sequence length: {model.max_seq_length}")
+from lib.semantic_search import verify_model
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Semantic Search CLI")
+    sub_parser = parser.add_subparsers(dest="commands",
+                                        help="display available commands")
+    sub_parser.add_parser("verify",
+                          help="display model details")
     args = parser.parse_args()
 
-    match args.command:
+    match args.commands:
+        case "verify":
+            verify_model()
         case _:
             parser.print_help()
 
