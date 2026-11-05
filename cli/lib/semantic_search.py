@@ -28,8 +28,10 @@ class SemanticSearch:
     def generate_embedding(self, text):
         if len("".join(text.split())) == 0:
             raise ValueError("empty text")
-        embedding = self.model.encode(text.split())
+        embedding = self.model.encode([text])
         return embedding[0]
+        
+
     
     def load_or_create_embeddings(self, documents):
         self.documents = documents
